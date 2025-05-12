@@ -1,0 +1,93 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Getopt::Long;
+use POSIX qw(strftime);
+use File::Path qw(make_path);
+use File::Spec;
+
+# -- Configuration --
+my $NOTES_ROOT = "$ENV{HOME}/.notes";
+
+# Ensure notes directory exists and is a git repo
+unless (-d $NOTES_ROOT) {
+    make_path($NOTES_ROOT) or die "Cannot create $NOTES_ROOT: $!";
+    system('git', '-C', $NOTES_ROOT, 'init') == 0
+      or die "git init failed for $NOTES_ROOT";
+}
+
+# Check for git
+system('which', 'git', '>/dev/null', '2>&1') == 0
+  or die "ERROR: git not found in PATH. Please install git.\n";
+
+# Parse options
+my ($do_list, $do_edit, $do_del, $do_del_date);
+GetOptions(
+  'list|l'       => \$do_list,
+  'edit|e=s'     => \$do_edit,
+  'delete|d=s'   => \$do_del,
+  'del-date|D=s' => \$do_del_date,
+) or usage();
+
+sub usage {
+  die <<"USAGE";
+Usage: n [--list] [--edit DATE/ENTRY] [--delete DATE/ENTRY] [--del-date DATE]
+  --list, -l           List all notes (via git ls-files)
+  --edit, -e DATE/FILE Edit existing entry
+  --delete, -d DATE/FILE Delete single entry
+  --del-date, -D DATE  Delete all entries for a date
+USAGE
+}
+
+sub full_path {
+  my ($rel) = @_;
+  return File::Spec->catfile($NOTES_ROOT, split m{/}, $rel);
+}
+
+# Dispatch
+if ($do_list) {
+  exec 'git', '-C', $NOTES_ROOT, 'ls-files'
+    or die "Failed to list notes via git\n";
+}
+elsif ($do_edit) {
+  my $path = full_path($do_edit);
+  -e $path or die "No such entry: $do_edit\n";
+  system($ENV{EDITOR} || 'ed', $path) == 0
+    or die "Editor failed on $path\n";
+  system('git', '-C', $NOTES_ROOT, 'add', $do_edit);
+  system('git', '-C', $NOTES_ROOT, 'commit', '-m', "Edit note $do_edit");
+}
+elsif ($do_del) {
+  my $path = full_path($do_del);
+  -e $path or die "No such entry: $do_del\n";
+  unlink $path or die "Failed to delete $do_del: $!\n";
+  system('git', '-C', $NOTES_ROOT, 'rm', $do_del);
+  system('git', '-C', $NOTES_ROOT, 'commit', '-m', "Delete note $do_del");
+  print "Deleted entry $do_del\n";
+}
+elsif ($do_del_date) {
+  my $dir = full_path($do_del_date);
+  -d $dir or die "No such date directory: $do_del_date\n";
+  system('git', '-C', $NOTES_ROOT, 'rm', '-r', $do_del_date);
+  system('git', '-C', $NOTES_ROOT, 'commit', '-m', "Delete date $do_del_date");
+  print "Deleted all entries for $do_del_date\n";
+}
+else {
+  # New note
+  my $today = strftime("%Y-%m-%d", localtime);
+  my $ts    = strftime("%H%M%S",   localtime);
+  my $dir   = "$NOTES_ROOT/$today";
+  make_path($dir) unless -d $dir;
+  my $file  = "$dir/$ts.txt";
+
+  open my $fh, '>', $file or die "Cannot create $file: $!\n";
+  print $fh "# $today $ts\n\n";
+  close $fh;
+
+  system($ENV{EDITOR} || 'ed', $file) == 0
+    or die "Editor failed on $file\n";
+
+  my $rel = "$today/$ts.txt";
+  system('git', '-C', $NOTES_ROOT, 'add', $rel);
+  system('git', '-C', $NOTES_ROOT, 'commit', '-m', "Add note $today $ts");
+}

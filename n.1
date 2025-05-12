@@ -1,0 +1,45 @@
+." Manpage for n
+.TH N 1 "May 12, 2025" "1.0" "User Commands"
+.SH NAME
+n \- git-backed timestamped note-taking utility
+
+.SH SYNOPSIS
+.B n
+[\fB-l\fR|\fB--list\fR]
+[\fB-e\fR\fI <date/entry>\fR|\fB--edit\fR\fI <date/entry>\fR]
+[\fB-d\fR\fI <date/entry>\fR|\fB--delete\fR\fI <date/entry>\fR]
+[\fB-D\fR\fI <date>\fR|\fB--del-date\fR\fI <date>\fR]
+
+.SH DESCRIPTION
+On start, \fBn\fR ensures \fB~/.notes\fR exists and is a Git
+repository, then:
+.TP
+With no options, creates a new timestamped entry
+under a YYYY-MM-DD subdir and opens it in $EDITOR
+(or ed), then commits.
+.TP
+\fB-l\fR,\fB--list\fR
+List all tracked note files via git ls-files.
+.TP
+\fB-e\fR,\fB--edit\fR
+Edit an existing note (argument: YYYY-MM-DD/HHMMSS.txt), commit.
+.TP
+\fB-d\fR,\fB--delete\fR
+Remove and git-rm a single entry.
+.TP
+\fB-D\fR,\fB--del-date\fR
+Remove and git-rm all entries for a given date.
+
+.SH FILES
+.IP "~/.notes/" 12
+Root notes directory (auto-git-init).
+.IP "/usr/local/bin/n" 12
+Installed script.
+.IP "/usr/local/share/man/man1/n.1" 12
+This manpage.
+
+.SH AUTHOR
+Written by e. alvarez.
+
+.SH LICENSE
+Public domain.
